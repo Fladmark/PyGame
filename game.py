@@ -298,6 +298,9 @@ class Dummy(object):
         self.hit_left = False
         self.hit_right = False
         self.hitCounter = 0
+        self.clicked = False
+        self.clicked_list = [0, 0]
+        self.fall = 1
 
     def draw(self, window):
         if self.hit_left:
@@ -314,14 +317,38 @@ class Dummy(object):
                 self.hit_right = False
                 self.hitCounter = 0
 
+        if (pygame.mouse.get_pressed()[0] == 1):
+            self.clicked_list.append(1)
+        else:
+            self.clicked_list.append(0)
+        if (self.clicked_list[0] == 0 and self.clicked_list[1] == 1 and self.clicked == False and self.x <
+           pygame.mouse.get_pos()[0] < self.x + self.width and self.y < pygame.mouse.get_pos()[1] < self.y + self.width):
+            self.clicked = True
+        elif self.clicked_list[0] == 0 and self.clicked_list[1] == 1 and self.clicked:
+            self.clicked = False
+
+        if len(self.clicked_list) == 3:
+            self.clicked_list.pop(0)
+
+        if self.clicked:
+            self.x = pygame.mouse.get_pos()[0] - 24
+            self.y = pygame.mouse.get_pos()[1] - 24
+        else:
+            if self.y < 290:
+                self.y += self.fall
+                self.fall += 3
+            else:
+                self.y = 305
+                self.fall = 1
+
         for projectile in projectiles:
             if fighter.x > self.x + self.width/2:
-                if (self.x + self.width/2 - 15 < projectile.x - 20 < self.x + self.width/2 + 15 and
+                if (self.x + self.width/2 - 16 < projectile.x - 20 < self.x + self.width/2 + 15 and
                    self.y < projectile.y < self.y + self.height):
                     self.hit_right = True
                     item_hit.append(projectile)
             elif fighter.x < self.x + self.width/2:
-                if (self.x + self.width/2 - 15 < projectile.x + 20 < self.x + self.width/2 + 15 and
+                if (self.x + self.width/2 - 16 < projectile.x + 20 < self.x + self.width/2 + 15 and
                    self.y < projectile.y < self.y + self.height):
                     self.hit_left = True
                     item_hit.append(projectile)
@@ -368,6 +395,7 @@ while run:
         elif fighter.last_direction == -1:
             arrow = Projectile(round(fighter.x), round(fighter.y + 20), 2, (255, 255, 255), fighter.last_direction)
             projectiles.append(arrow)
+
 
 # if cheat
     # if fighter.bowCount == 18 or fighter.bowCount == 15 or fighter.bowCount == 12:
