@@ -1,4 +1,6 @@
 import pygame
+from random import *
+import sys
 
 pygame.init()
 
@@ -9,6 +11,9 @@ heightSprite = 50
 item_out_of_range = []
 item_hit = []
 backgroundCounter = 0
+create_counter = 0
+marked_item = []
+list_of_dummies = []
 
 win = pygame.display.set_mode((screenWidth, screenHeight))
 pygame.display.set_caption("Adventure")
@@ -138,6 +143,20 @@ for item in bow_right:
     x = pygame.transform.flip(item, True, False)
     bow_left.append(x)
 
+golem_right = [
+    pygame.image.load("pictures/golem/tile000.png"),
+    pygame.image.load("pictures/golem/tile001.png"),
+    pygame.image.load("pictures/golem/tile002.png"),
+    pygame.image.load("pictures/golem/tile003.png"),
+    pygame.image.load("pictures/golem/tile004.png"),
+    pygame.image.load("pictures/golem/tile005.png"),
+    pygame.image.load("pictures/golem/tile006.png")
+]
+golem_left = []
+for item in golem_right:
+    x = pygame.transform.flip(item, True, False)
+    golem_left.append(x)
+
 dummy_frames_left = [
     # pygame.image.load("character/dummy(8).png"),
     # pygame.image.load("character/dummy(7).png"),
@@ -160,6 +179,7 @@ dummy_frames_right = [
 dummy_frame_still = [
     pygame.image.load("character/dummy(8).png")
 ]
+hp_bar_frame = pygame.image.load("pictures/hpbar.png")
 
 clock = pygame.time.Clock()
 
@@ -185,6 +205,9 @@ class Player(object):
         self.last_direction = 1
         self.next_attack = 0
         self.tics_since_attack = 0
+        self.attacked_normal = False
+        self.attacked_power = False
+        self.sword_hit = False
 
     def draw(self, window):
         if self.walkCount + 1 >= 18:
@@ -216,6 +239,7 @@ class Player(object):
                     window.blit(attack_left_1[self.attackCount // 2], (self.x, self.y))
                 elif self.last_direction == 1:
                     window.blit(attack_right_1[self.attackCount // 2], (self.x, self.y))
+
                 self.attackCount += 1
 
             elif self.next_attack == 1:
@@ -239,7 +263,13 @@ class Player(object):
                 else:
                     self.next_attack += 1
 
+            if self.attackCount == 6:
+                self.sword_hit = True
+            else:
+                self.sword_hit = False
+
             self.tics_since_attack = 0
+            self.bowCount = 0
 
         elif self.ranged_attack:
             if self.last_direction == -1:
@@ -272,10 +302,59 @@ class Player(object):
             self.next_attack = 0
             self.tics_since_attack = 0
 
+class Golem(object):
+
+    def __init__(self, x, y, boss=False):
+        self.x = x
+        self.y = y
+        self.width = 128
+        self.height = 128
+        self.speed = 1
+        self.walkCount = 0
+        self.left = False
+        self.right = True
+        self.last_direction = 1
+        self.boss = boss
+
+    def draw(self, window):
+        bar_width = 406
+        bar_height = 56
+        red_width = 400
+        red_height = 50
+        red_hp_width = red_width
+        if self.walkCount == 28:
+            self.walkCount = 0
+
+        if fighter.x + fighter.width/2 > self.x + self.width/2:
+            self.right = True
+            self.left = False
+        elif fighter.x + fighter.width/2 <= self.x + self.width/2:
+            self.left = True
+            self.right = False
+
+        if self.left:
+            window.blit(golem_left[self.walkCount // 4], (self.x, self.y))
+            self.walkCount += 1
+        elif self.right:
+            window.blit(golem_right[self.walkCount // 4], (self.x, self.y))
+            self.walkCount += 1
+
+        if self.left:
+            self.x -= self.speed
+        elif self.right:
+            self.x += self.speed
+
+        if self.boss:
+            window.blit(hp_bar_frame,(screenWidth/2 - bar_width/2, 50))
+            pygame.draw.rect(window, (255,255,255), (screenWidth/2 + (bar_width-red_width)/2 - bar_width/2,
+                                                     (bar_height-red_height)/2 + red_height, red_hp_width, red_height))
+
+
+
 
 class Projectile(object):
 
-    def __init__(self, x, y, width, color, direction):
+    def __init__(self, x, y, width, color, direction, character_width=48):
         self.x = x
         self.y = y
         self.width = width
@@ -283,14 +362,64 @@ class Projectile(object):
         self.direction = direction
         self.vel = 30 * direction
         self.out_of_range = []
+        self.character_width = character_width
 
     def draw(self, window):
-        pygame.draw.line(window, self.color, (round(self.x), round(self.y)), (round(self.x + 20*self.direction), round(self.y)))
+        pygame.draw.line(window, self.color, (round(self.x) + self.character_width/2, round(self.y)),
+                        (round(self.x + self.character_width/2 + self.width*self.direction), round(self.y)), 2)
+
+
+class Button(object):
+
+    def __init__(self, x, y, width, height, centered=False, text=""):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.text = text
+        self.centered = centered
+        self.boarder = 2
+        self.counter = 0
+
+
+    def draw(self, window):
+        global menu
+        global run
+        global pause
+        if self.centered:
+            self.x = screenWidth/2 - self.width/2
+
+        pygame.draw.rect(window, (0, 0, 0), (self.x - self.boarder, self.y - self.boarder,
+                                             self.width + self.boarder * 2, self.height + self.boarder * 2))
+        pygame.draw.rect(window, (180,191,109), (self.x, self.y, self.width, self.height))
+
+        if self.x < pygame.mouse.get_pos()[0] < self.x + self.width and self.y < pygame.mouse.get_pos()[1] < self.y + self.height:
+            pygame.draw.rect(window, (68,135,0), (self.x, self.y, self.width, self.height))
+            if (pygame.mouse.get_pressed()[0] == 1) and self.text == "START":
+                menu = False
+            elif (pygame.mouse.get_pressed()[0] == 1) and self.text == "EXIT":
+                sys.exit()
+            elif (pygame.mouse.get_pressed()[0] == 1) or self.counter == 1 and self.text == "CONTINUE":
+                pause = False
+
+
+        font = pygame.font.SysFont('papyrus', 30)
+        text = font.render(self.text, 1, (0, 0, 0))
+        win.blit(text, (self.x + (self.width - text.get_rect().width)/2, self.y + (self.height - text.get_rect().height)/2, self.width, self.height))
+
+
+
+
+
+# list of buttons below
+b = Button(100, 100, 200, 75, True, "START")
+c = Button(100, 200, 200, 75, True, "EXIT")
+d = Button(100, 100, 250, 75, True, "CONTINUE")
 
 
 class Dummy(object):
 
-    def __init__(self, x, y, width, height):
+    def __init__(self, x, y, width=48, height=48):
         self.x = x
         self.y = y
         self.width = width
@@ -301,8 +430,11 @@ class Dummy(object):
         self.clicked = False
         self.clicked_list = [0, 0]
         self.fall = 1
+        self.marked = False
 
     def draw(self, window):
+        global marked_item
+
         if self.hit_left:
             window.blit(dummy_frames_left[self.hitCounter // 1], (self.x, self.y))
         elif self.hit_right:
@@ -324,16 +456,21 @@ class Dummy(object):
         if (self.clicked_list[0] == 0 and self.clicked_list[1] == 1 and self.clicked == False and self.x <
            pygame.mouse.get_pos()[0] < self.x + self.width and self.y < pygame.mouse.get_pos()[1] < self.y + self.width):
             self.clicked = True
+            marked_item.append(self)
         elif self.clicked_list[0] == 0 and self.clicked_list[1] == 1 and self.clicked:
             self.clicked = False
+            marked_item = []
 
         if len(self.clicked_list) == 3:
             self.clicked_list.pop(0)
 
-        if self.clicked:
-            self.x = pygame.mouse.get_pos()[0] - 24
-            self.y = pygame.mouse.get_pos()[1] - 24
+        if self.clicked and len(marked_item) > 0:
+            if marked_item[0] == self:
+                self.marked = True
+                self.x = pygame.mouse.get_pos()[0] - 24
+                self.y = pygame.mouse.get_pos()[1] - 24
         else:
+            self.marked = False
             if self.y < 290:
                 self.y += self.fall
                 self.fall += 3
@@ -342,38 +479,118 @@ class Dummy(object):
                 self.fall = 1
 
         for projectile in projectiles:
-            if fighter.x > self.x + self.width/2:
-                if (self.x + self.width/2 - 16 < projectile.x - 20 < self.x + self.width/2 + 15 and
+            if fighter.x + fighter.width/2 > self.x + self.width/2:
+                if (self.x + self.width/2 - 16 < projectile.x < self.x + self.width/2 + 15 and
                    self.y < projectile.y < self.y + self.height):
                     self.hit_right = True
                     item_hit.append(projectile)
-            elif fighter.x < self.x + self.width/2:
-                if (self.x + self.width/2 - 16 < projectile.x + 20 < self.x + self.width/2 + 15 and
+            elif fighter.x + fighter.width/2  < self.x + self.width/2:
+                if (self.x + self.width/2 - 16 < projectile.x  + 20 < self.x + self.width/2 + 15 and
                    self.y < projectile.y < self.y + self.height):
                     self.hit_left = True
                     item_hit.append(projectile)
+
+        # if fighter.sword_hit:
+        #     print(fighter.x + fighter.width/2)
+        #     print(self.x + self.width/2)
+        #     if fighter.x + fighter.width/2 > self.x + self.width/2:
+        #         if (fighter.x + fighter.width/2 > self.x + self.width/2 > (fighter.x + fighter.width/2) + ((fighter.width)*fighter.last_direction) and
+        #                 fighter.y < self.y + self.height/2 < fighter.y + fighter.height):
+        #             self.hit_right = True
+        #     elif fighter.x + fighter.width/2 < self.x + self.width / 2:
+        #         if (fighter.x + fighter.width/2 < self.x + self.width/2 < (fighter.x + fighter.width/2) + ((fighter.width)*fighter.last_direction) and
+        #                 fighter.y < self.y + self.height/2 < fighter.y + fighter.height):
+        #             self.hit_left = True
+
+        if fighter.sword_hit:
+            print(fighter.x + fighter.width/2)
+            print(self.x + self.width/2)
+            if fighter.x > self.x:
+                if (fighter.x + fighter.width/2 > self.x + self.width/2 > (fighter.x + fighter.width/2) + ((fighter.width)*fighter.last_direction) and
+                        fighter.y < self.y + self.height/2 < fighter.y + fighter.height):
+                    self.hit_right = True
+            elif fighter.x < self.x:
+                if (fighter.x + fighter.width/2 < self.x + self.width/2 < (fighter.x + fighter.width/2) + ((fighter.width)*fighter.last_direction) and
+                        fighter.y < self.y + self.height/2 < fighter.y + fighter.height):
+                    self.hit_left = True
+
+def none():
+    pass
+
+def create_dummies():
+    global list_of_dummies
+    global create_counter
+    if create_counter == 0:
+        x = Dummy(pygame.mouse.get_pos()[0] - 24, pygame.mouse.get_pos()[1] - 24)
+        list_of_dummies.append(x)
+        create_counter += 1
+    elif create_counter == 20:
+        create_counter = 0
+    else:
+        create_counter += 1
+
+def delete_dummy():
+    global list_of_dummies
+    dummies_deleted = []
+    for dummy in list_of_dummies:
+        if dummy.marked == True:
+            dummies_deleted.append(dummy)
+    list_of_dummies = [x for x in list_of_dummies if x not in dummies_deleted]
+
+def mass_delete():
+    global list_of_dummies
+    dummies_deleted = []
+    for dummy in list_of_dummies:
+        dummies_deleted.append(dummy)
+    list_of_dummies = [x for x in list_of_dummies if x not in dummies_deleted]
 
 
 def draw_game_window():
     global backgroundCounter
     win.blit(background_frames[backgroundCounter // 3], (0, 0))
+
     if backgroundCounter == 21:
         backgroundCounter = 0
     else:
         backgroundCounter += 1
-    dummy.draw(win)
-    dummy2.draw(win)
+    for dummy in list_of_dummies:
+        dummy.draw(win)
     fighter.draw(win)
     for projectile in projectiles:
         projectile.draw(win)
+    g.draw(win)
     pygame.display.update()
 
-dummy = Dummy(400, 305, 48, 48)
-dummy2 = Dummy(450, 305, 48, 48)
-fighter = Player(50, 315, widthSprite, heightSprite)
+g = Golem(screenWidth + 20, 270, True)
+fighter = Player(20, 315, widthSprite, heightSprite)
 run = True
 projectiles = []
+menu = True
+pause = False
 while run:
+    while menu:
+        clock.tick(30)
+        win.blit(background_frames[backgroundCounter // 3], (0, 0))
+        b.draw(win)
+        c.draw(win)
+
+        if backgroundCounter == 21:
+            backgroundCounter = 0
+        else:
+            backgroundCounter += 1
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+        pygame.display.update()
+    while pause:
+        clock.tick(30)
+        d.draw(win)
+        c.draw(win)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+        pygame.display.update()
+
     clock.tick(30)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -387,13 +604,14 @@ while run:
 
         projectiles = [x for x in projectiles if x not in item_out_of_range and x not in item_hit]
 
-
     if fighter.bowCount == 8:
         if fighter.last_direction == 1:
-            arrow = Projectile(round(fighter.x + widthSprite), round(fighter.y + 20), 2, (255, 255, 255), fighter.last_direction)
+            arrow = Projectile(round(fighter.x + widthSprite), round(fighter.y + 20), 20, (randint(100,255), randint(100,255), randint(100,255)), fighter.last_direction)
+            #arrow = Projectile(round(fighter.x + widthSprite), round(fighter.y + 20), 20, (255, 255, 255), fighter.last_direction)
             projectiles.append(arrow)
         elif fighter.last_direction == -1:
-            arrow = Projectile(round(fighter.x), round(fighter.y + 20), 2, (255, 255, 255), fighter.last_direction)
+            arrow = Projectile(round(fighter.x), round(fighter.y + 20), 20, (randint(100,255), randint(100,255), randint(100,255)), fighter.last_direction)
+            #arrow = Projectile(round(fighter.x), round(fighter.y + 20), 20, (255, 255, 255), fighter.last_direction)
             projectiles.append(arrow)
 
 
@@ -408,16 +626,27 @@ while run:
 
     keys = pygame.key.get_pressed()
 
+    if keys[pygame.K_d]:
+        create_dummies()
+    else:
+        create_counter = 0
+    if keys[pygame.K_DELETE]:
+        delete_dummy()
+    if keys[pygame.K_DELETE] and keys[pygame.K_m]:
+        mass_delete()
     if keys[pygame.K_e] and not fighter.isJump:
         fighter.left = False
         fighter.right = False
         fighter.attack = True
+        fighter.ranged_attack = False
+    if keys[pygame.K_p]:
+        pause = True
     elif keys[pygame.K_r] and not fighter.isJump:
         fighter.left = False
         fighter.right = False
-        fighter.ack = False
+        fighter.attack = False
         fighter.ranged_attack = True
-    elif keys[pygame.K_LEFT] and fighter.x > fighter.vel and not fighter.attack and not fighter.ranged_attack:
+    elif keys[pygame.K_LEFT] and fighter.x + fighter.width/2 > fighter.vel and not fighter.attack and not fighter.ranged_attack:
         fighter.x -= fighter.vel
         fighter.left = True
         fighter.right = False
