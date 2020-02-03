@@ -6,14 +6,16 @@ pygame.init()
 
 screenWidth = 768
 screenHeight = 368
-widthSprite = 37
-heightSprite = 50
+widthSprite = 26
+heightSprite = 36
 item_out_of_range = []
 item_hit = []
 backgroundCounter = 0
 create_counter = 0
 marked_item = []
 list_of_dummies = []
+deadEnemies = []
+enemies = []
 
 win = pygame.display.set_mode((screenWidth, screenHeight))
 pygame.display.set_caption("Adventure")
@@ -157,6 +159,51 @@ for item in golem_right:
     x = pygame.transform.flip(item, True, False)
     golem_left.append(x)
 
+golem_right_hit = [
+    pygame.image.load("pictures/golem/golemhit_00.png"),
+    pygame.image.load("pictures/golem/golemhit_01.png"),
+    pygame.image.load("pictures/golem/golemhit_02.png"),
+    pygame.image.load("pictures/golem/golemhit_03.png"),
+    pygame.image.load("pictures/golem/golemhit_04.png"),
+    pygame.image.load("pictures/golem/golemhit_05.png"),
+    pygame.image.load("pictures/golem/golemhit_06.png")
+]
+golem_left_hit = []
+for item in golem_right_hit:
+    x = pygame.transform.flip(item, True, False)
+    golem_left_hit.append(x)
+
+golem_attack_right_hit = []
+for x in range(16):
+    golem_attack_right_hit.append(pygame.image.load(f"pictures/golem/golemattack_hit({x}).png"))
+
+golem_attack_left_hit = []
+for item in golem_attack_right_hit:
+    x = pygame.transform.flip(item, True, False)
+    golem_attack_left_hit.append(x)
+
+
+golem_death_right = []
+for x in range(36):
+    x = str(x)
+    golem_death_right.append(pygame.image.load(f"pictures/golem/deathgolem({x}).png"))
+
+golem_death_left = []
+
+for item in golem_death_right:
+    x = pygame.transform.flip(item, True, False)
+    golem_death_left.append(x)
+
+golem_attack_right = []
+for x in range(16):
+    golem_attack_right.append(pygame.image.load(f"pictures/golem/golemattack({x}).png"))
+
+golem_attack_left = []
+for item in golem_attack_right:
+    x = pygame.transform.flip(item, True, False)
+    golem_attack_left.append(x)
+
+
 dummy_frames_left = [
     # pygame.image.load("character/dummy(8).png"),
     # pygame.image.load("character/dummy(7).png"),
@@ -179,18 +226,26 @@ dummy_frames_right = [
 dummy_frame_still = [
     pygame.image.load("character/dummy(8).png")
 ]
+bang = []
+for x in range(19):
+    bang.append(pygame.image.load(f"pictures/framebang/bang({x}).png"))
+
+
 hp_bar_frame = pygame.image.load("pictures/hpbar.png")
+hp_heart = pygame.image.load("pictures/heart_00.png")
 
 clock = pygame.time.Clock()
 
 
 class Player(object):
 
-    def __init__(self, x, y, width, height):
-        self.x = x
-        self.y = y
-        self.height = height
-        self.width = width
+    def __init__(self):
+        #fighter = Player(600, 315, widthSprite, heightSprite)
+        self.x = 100
+        self.y = 315
+        self.height = widthSprite
+        self.width = heightSprite
+        self.center = (self.x + self.width, self.y + self.height/2)
         self.vel = 7
         self.isJump = False
         self.jumpCount = 8
@@ -208,6 +263,18 @@ class Player(object):
         self.attacked_normal = False
         self.attacked_power = False
         self.sword_hit = False
+        self.bow_damage = 5
+        self.sword_damage = 20
+        self.health = 3
+        self.dead = False
+        self.hitzone = []
+        self.hit = False
+
+    def reset(self):
+        self.health = 3
+        self.x = 100
+        self.y = 315
+        self.dead = False
 
     def draw(self, window):
         if self.walkCount + 1 >= 18:
@@ -218,6 +285,21 @@ class Player(object):
             self.attackCount = 0
         if self.bowCount + 1 >= 10:
             self.bowCount = 0
+
+        self.center = (self.x + self.width, self.y + self.height/2)
+
+        health_x = 20
+        for heart in range(self.health):
+            window.blit(hp_heart, (health_x, 20))
+            health_x += 50
+
+        if self.health == 0:
+            self.dead = True
+
+        if self.dead:
+            global menu
+            menu = True
+            self.reset()
 
         if self.isJump:
             if self.last_direction == -1 and self.jumpCount <= -4:
@@ -232,6 +314,7 @@ class Player(object):
                 window.blit(jump_left[abs(self.jumpCount) % 4], (self.x, self.y))
             elif self.last_direction == 1:
                 window.blit(jump_right[abs(self.jumpCount) % 4], (self.x, self.y))
+            fighter.hit = False
 
         elif self.attack:
             if self.next_attack == 0:
@@ -264,9 +347,23 @@ class Player(object):
                     self.next_attack += 1
 
             if self.attackCount == 6:
-                self.sword_hit = True
+                # if self.next_attack ==
+                if self.last_direction == 1:
+                    # pygame.draw.rect(window, (143, 33, 66),
+                    #                  (self.center[0]- self.width/2, self.center[1] - self.height/2, self.width*1.5, self.height))
+                    self.hitzone = [self.center[0] + self.width/2, self.center[0] + self.width, self.center[1] - self.height/2, self.height] # x1, x2, y1, y2
+                    self.hit = True
+                elif self.last_direction == -1:
+                    # pygame.draw.rect(window, (143, 33, 66),
+                    #                  (self.center[0] - self.width, self.center[1] - self.height / 2,
+                    #                   self.width * 1.5, self.height))
+                    self.hitzone = [self.center[0] - self.width, self.center[0] - self.width/2, self.center[1] - self.height / 2,
+                                    self.height]
+                    self.hit = True
             else:
-                self.sword_hit = False
+                self.hit = False
+
+
 
             self.tics_since_attack = 0
             self.bowCount = 0
@@ -280,8 +377,6 @@ class Player(object):
 
             if self.bowCount == 9:
                 self.ranged_attack = False
-
-
 
         elif self.left:
             window.blit(walkLeft[self.walkCount // 3], (self.x, self.y))
@@ -305,52 +400,166 @@ class Player(object):
 class Golem(object):
 
     def __init__(self, x, y, boss=False):
-        self.x = x
-        self.y = y
-        self.width = 128
-        self.height = 128
-        self.speed = 1
+        self.width = 128 - 60
+        self.height = 118 - 40
+        self.x = x - 30
+        self.y = y - 10
+        self.center = (self.x+self.width, self.y + self.height/2)
+        self.speed = 2
         self.walkCount = 0
+        self.attackCount = 0
+        self.deathCount = 0
         self.left = False
         self.right = True
         self.last_direction = 1
         self.boss = boss
+        self.health = 400
+        self.dead = False
+        self.left_attack = False
+        self.right_attack = False
+        self.attack = False
+        self.hit_right = False
+        self.hit_left = False
+        self.hit_attack_right = False
+        self.hit_attack_left = False
+        self.hit = False
 
     def draw(self, window):
+        global deadEnemies
         bar_width = 406
         bar_height = 56
         red_width = 400
         red_height = 50
-        red_hp_width = red_width
-        if self.walkCount == 28:
-            self.walkCount = 0
 
-        if fighter.x + fighter.width/2 > self.x + self.width/2:
-            self.right = True
-            self.left = False
-        elif fighter.x + fighter.width/2 <= self.x + self.width/2:
-            self.left = True
-            self.right = False
+        self.center = (self.x + self.width, self.y + self.height / 2)
 
-        if self.left:
-            window.blit(golem_left[self.walkCount // 4], (self.x, self.y))
-            self.walkCount += 1
-        elif self.right:
-            window.blit(golem_right[self.walkCount // 4], (self.x, self.y))
-            self.walkCount += 1
+        if not self.dead:
+            if self.walkCount == 28:
+                self.walkCount = 0
+            if self.attackCount == 32:
+                self.attackCount = 0
+                self.right_attack = False
+                self.left_attack = False
+                self.hit = False
 
-        if self.left:
-            self.x -= self.speed
-        elif self.right:
-            self.x += self.speed
+            if (fighter.center[0] > self.center[0]):
+                self.right = True
+                self.left = False
+            elif (fighter.center[0] < self.center[0]):
+                self.left = True
+                self.right = False
 
-        if self.boss:
-            window.blit(hp_bar_frame,(screenWidth/2 - bar_width/2, 50))
-            pygame.draw.rect(window, (255,255,255), (screenWidth/2 + (bar_width-red_width)/2 - bar_width/2,
-                                                     (bar_height-red_height)/2 + red_height, red_hp_width, red_height))
+            if fighter.hit:
+                if (self.center[0] - 25 < fighter.hitzone[0] < self.center[0] + 25 or self.center[0] - 25 < fighter.hitzone[1] < self.center[0] + 25):
+                    self.health -= fighter.sword_damage
+                    if self.right_attack:
+                        self.hit_attack_right = True
+                    elif self.left_attack:
+                        self.hit_attack_left = True
+                    elif self.left:
+                        self.hit_left = True
+                    elif self.right:
+                        self.hit_right = True
+
+            for projectile in projectiles:
+                if self.x < projectile.x < self.x + self.width and self.y < projectile.y < self.y + self.height:
+                    item_hit.append(projectile)
+                    self.health -= fighter.bow_damage
+                    if self.right_attack:
+                        self.hit_attack_right = True
+                    elif self.left_attack:
+                        self.hit_attack_left = True
+                    elif self.left:
+                        self.hit_left = True
+                    elif self.right:
+                        self.hit_right = True
+
+
+            #pygame.draw.line(win, (255,255,255), (fighter.center[0], fighter.center[1]), (fighter.center[0] + 30, fighter.center[1]+30))
+            #pygame.draw.line(win, (255, 255, 255), (self.center[0] + 25, self.center[1]), (self.center[0] + 60, self.center[1]))
+            if self.right_attack:
+                if self.hit_attack_right:
+                    window.blit(golem_attack_right_hit[self.attackCount // 2], (self.x, self.y))
+                    self.hit_attack_right = False
+                else:
+                    window.blit(golem_attack_right[self.attackCount // 2], (self.x, self.y))
+                self.attackCount += 1
+                if 20 < self.attackCount < 28:
+                    self.x += self.speed*6
+            elif self.left_attack:
+                if self.hit_attack_left:
+                    window.blit(golem_attack_left_hit[self.attackCount // 2], (self.x - 30, self.y))
+                    self.hit_attack_left = False
+                else:
+                    window.blit(golem_attack_left[self.attackCount // 2], (self.x - 30, self.y))
+                self.attackCount += 1
+                if 20 < self.attackCount < 28:
+                    self.x -= self.speed*9
+            elif self.left:
+                if self.hit_left:
+                    window.blit(golem_left_hit[self.walkCount // 4], (self.x, self.y))
+                    self.hit_left = False
+                else:
+                    window.blit(golem_left[self.walkCount // 4], (self.x, self.y))
+                self.walkCount += 1
+                self.x -= self.speed
+            elif self.right:
+                if self.hit_right:
+                    window.blit(golem_right_hit[self.walkCount // 4], (self.x, self.y))
+                    self.hit_right = False
+                else:
+                    window.blit(golem_right[self.walkCount // 4], (self.x, self.y))
+                self.walkCount += 1
+                self.x += self.speed
+
+            if ((abs(fighter.center[0] - self.center[0])) < 150) and (not self.right_attack and not self.left_attack):
+                if self.left:
+                    self.left_attack = True
+                    self.right_attack = False
+                elif self.right:
+                    self.right_attack = True
+                    self.left_attack = False
+
+
+            if (self.center[0] - self.width/2 < fighter.center[0] < self.center[0] + self.width/2 and
+                self.center[1] - self.height/2 < fighter.center[1] < self.center[1] + self.height/2 and
+                (self.left_attack or self.right_attack) and 20 < self.attackCount < 28):
+                if not self.hit:
+                    fighter.health -= 1
+                    self.hit = True
 
 
 
+            if self.boss:
+                window.blit(hp_bar_frame, (screenWidth / 2 - bar_width / 2, 50))
+                pygame.draw.rect(window, (143,33,66), (screenWidth/2 + (bar_width-red_width)/2 - bar_width/2,
+                                (bar_height-red_height)/2 + red_height, self.health, red_height))
+
+
+            if self.health <= 0:
+                self.dead = True
+        elif self.dead:
+            if self.left:
+                window.blit(golem_death_left[self.deathCount // 2], (self.x, self.y))
+                self.deathCount += 1
+            elif self.right:
+                window.blit(golem_death_right[self.deathCount // 2], (self.x, self.y))
+                self.deathCount += 1
+
+            if self.deathCount == 72:
+                deadEnemies.append(self)
+                self.deathCount = 0
+
+class Which(object):
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.right = True
+        self. right = False
+
+    #def draw(self, window):
+        #pygame.
 
 class Projectile(object):
 
@@ -403,18 +612,17 @@ class Button(object):
                 pause = False
 
 
+
         font = pygame.font.SysFont('papyrus', 30)
         text = font.render(self.text, 1, (0, 0, 0))
         win.blit(text, (self.x + (self.width - text.get_rect().width)/2, self.y + (self.height - text.get_rect().height)/2, self.width, self.height))
-
-
-
 
 
 # list of buttons below
 b = Button(100, 100, 200, 75, True, "START")
 c = Button(100, 200, 200, 75, True, "EXIT")
 d = Button(100, 100, 250, 75, True, "CONTINUE")
+e = Button(100, 100, 200, 75, True, "RESET")
 
 
 class Dummy(object):
@@ -514,9 +722,6 @@ class Dummy(object):
                         fighter.y < self.y + self.height/2 < fighter.y + fighter.height):
                     self.hit_left = True
 
-def none():
-    pass
-
 def create_dummies():
     global list_of_dummies
     global create_counter
@@ -544,7 +749,6 @@ def mass_delete():
         dummies_deleted.append(dummy)
     list_of_dummies = [x for x in list_of_dummies if x not in dummies_deleted]
 
-
 def draw_game_window():
     global backgroundCounter
     win.blit(background_frames[backgroundCounter // 3], (0, 0))
@@ -558,11 +762,15 @@ def draw_game_window():
     fighter.draw(win)
     for projectile in projectiles:
         projectile.draw(win)
-    g.draw(win)
+    for enemy in enemies:
+        enemy.draw(win)
     pygame.display.update()
 
-g = Golem(screenWidth + 20, 270, True)
-fighter = Player(20, 315, widthSprite, heightSprite)
+
+golem = Golem(300, 280, True)
+fighter = Player()
+enemies.append(golem)
+
 run = True
 projectiles = []
 menu = True
@@ -596,6 +804,11 @@ while run:
         if event.type == pygame.QUIT:
             run = False
 
+    enemies = [x for x in enemies if x not in deadEnemies]
+
+    for item in deadEnemies:
+        del item
+
     for projectile in projectiles:
         if 0 < projectile.x < screenWidth:
             projectile.x += projectile.vel
@@ -614,22 +827,12 @@ while run:
             #arrow = Projectile(round(fighter.x), round(fighter.y + 20), 20, (255, 255, 255), fighter.last_direction)
             projectiles.append(arrow)
 
-
-# if cheat
-    # if fighter.bowCount == 18 or fighter.bowCount == 15 or fighter.bowCount == 12:
-    #     if fighter.last_direction == 1:
-    #         arrow = Projectile(round(fighter.x + widthSprite), round(fighter.y + 20), 2, (255, 255, 255), fighter.last_direction)
-    #         projectiles.append(arrow)
-    #     elif fighter.last_direction == -1:
-    #         arrow = Projectile(round(fighter.x), round(fighter.y + 20), 2, (255, 255, 255), fighter.last_direction)
-    #         projectiles.append(arrow)
-
     keys = pygame.key.get_pressed()
-
-    if keys[pygame.K_d]:
-        create_dummies()
-    else:
-        create_counter = 0
+# Commented code below activates the use of dummies.
+    # if keys[pygame.K_d]:
+    #     create_dummies()
+    # else:
+    #     create_counter = 0
     if keys[pygame.K_DELETE]:
         delete_dummy()
     if keys[pygame.K_DELETE] and keys[pygame.K_m]:
