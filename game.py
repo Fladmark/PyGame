@@ -17,10 +17,13 @@ list_of_dummies = []
 deadEnemies = []
 enemies = []
 
-win = pygame.display.set_mode((screenWidth, screenHeight))
+win = pygame.display.set_mode((screenWidth, screenHeight), pygame.SCALED) # FOR EDITING ON LINUX
+#win = pygame.display.set_mode((screenWidth, screenHeight)) ## NORMAL MODE 
 pygame.display.set_caption("Adventure")
 background = pygame.image.load(f"pictures/forest.png")
 background = pygame.transform.flip(background, True, False)
+
+# Initilizing all images
 
 background_frames = [
     pygame.image.load("gif/frame_0_delay-0.11s.png"),
@@ -231,6 +234,44 @@ for x in range(19):
     bang.append(pygame.image.load(f"pictures/framebang/bang({x}).png"))
 
 
+
+
+witch_walk_right = []
+for x in range(8):
+    x = str(x)
+    witch_walk_right.append(pygame.image.load(f"pictures/sprite/Witch/witch_walk({x}).png"))
+
+witch_walk_left = []
+for item in witch_walk_right:
+    x = pygame.transform.flip(item, True, False)
+    witch_walk_left.append(x)
+
+
+witch_throw_right = []
+for x in range(18):
+    x = str(x)
+    witch_throw_right.append(pygame.image.load(f"pictures/sprite/Witch/witch_throw({x}).png"))
+
+witch_throw_left = []
+for item in witch_throw_right:
+    x = pygame.transform.flip(item, True, False)
+    witch_throw_left.append(x)
+
+
+witch_death_right = []
+for x in range(12):
+    x = str(x)
+    witch_death_right.append(pygame.image.load(f"pictures/sprite/Witch/witch_death({x}).png"))
+
+witch_death_left = []
+for item in witch_death_right:
+    x = pygame.transform.flip(item, True, False)
+    witch_death_left.append(x)
+
+
+
+
+
 hp_bar_frame = pygame.image.load("pictures/hpbar.png")
 hp_heart = pygame.image.load("pictures/heart_00.png")
 
@@ -274,6 +315,7 @@ class Player(object):
         self.health = 3
         self.x = 100
         self.y = 315
+        self.jumpCount = 8
         self.dead = False
 
     def draw(self, window):
@@ -550,13 +592,31 @@ class Golem(object):
                 deadEnemies.append(self)
                 self.deathCount = 0
 
-class Which(object):
+class Witch(object):
 
     def __init__(self, x, y):
         self.x = x
         self.y = y
         self.right = True
-        self. right = False
+        self.right = False
+
+        self.width = 128 - 60
+        self.height = 118 - 40
+
+        self.center = (self.x+self.width, self.y + self.height/2)
+        self.speed = 2
+        self.walkCount = 0
+        self.attackCount = 0
+        self.deathCount = 0
+        self.left = False
+        self.right = True
+        self.last_direction = 1
+        self.health = 1
+        self.dead = False
+        self.left_attack = False
+        self.right_attack = False
+        self.attack = False
+        
 
     #def draw(self, window):
         #pygame.
@@ -817,7 +877,7 @@ while run:
 
         projectiles = [x for x in projectiles if x not in item_out_of_range and x not in item_hit]
 
-    if fighter.bowCount == 8:
+    if fighter.bowCount:
         if fighter.last_direction == 1:
             arrow = Projectile(round(fighter.x + widthSprite), round(fighter.y + 20), 20, (randint(100,255), randint(100,255), randint(100,255)), fighter.last_direction)
             #arrow = Projectile(round(fighter.x + widthSprite), round(fighter.y + 20), 20, (255, 255, 255), fighter.last_direction)
