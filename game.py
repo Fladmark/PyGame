@@ -597,13 +597,13 @@ class Witch(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.right = True
-        self.right = False
 
-        self.width = 128 - 60
-        self.height = 118 - 40
+        self.width = 40
+        self.height = 40
 
         self.center = (self.x+self.width, self.y + self.height/2)
+
+
         self.speed = 2
         self.walkCount = 0
         self.attackCount = 0
@@ -616,6 +616,30 @@ class Witch(object):
         self.left_attack = False
         self.right_attack = False
         self.attack = False
+
+    def draw(self, window):
+        global deadEnemies
+
+        if self.walkCount == 32:
+            self.walkCount = 0
+
+        self.center = (self.x + self.width, self.y + self.height / 2)
+
+        if(fighter.center[0] > self.center[0]):
+            self.right = True
+            self.left = False
+        elif (fighter.center[0] < self.center[0]):
+            self.left = True
+            self.right = False
+
+        if self.left:
+            window.blit(witch_walk_left[self.walkCount // 4], (self.x, self.y))
+            self.walkCount += 1
+            self.x -= self.speed
+        elif self.right:
+            window.blit(witch_walk_right[self.walkCount // 4], (self.x, self.y))
+            self.walkCount += 1
+            self.x += self.speed
         
 
     #def draw(self, window):
@@ -828,8 +852,11 @@ def draw_game_window():
 
 
 golem = Golem(300, 280, True)
+witch = Witch(400, 290)
 fighter = Player()
+enemies.append(witch)
 enemies.append(golem)
+
 
 run = True
 projectiles = []
